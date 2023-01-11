@@ -48,7 +48,7 @@ export async function handleRequest(
 	const fromAccount = await loadExternalMastodonAccount(acct, fromActor)
 
 	const out: Notification = {
-		id: row.notif_id.toString(),
+		id: (row.notif_id as object).toString(),
 		type: row.type,
 		created_at: new Date(row.notif_cdate).toISOString(),
 		account: fromAccount,

@@ -24,7 +24,7 @@ describe('ActivityPub', () => {
 			globalThis.fetch = async (input: any) => {
 				if (input.url === `https://${domain}/ap/users/sven2/inbox`) {
 					assert.equal(input.method, 'POST')
-					const data = await input.json()
+					const data = await (input as Response).json()
 					receivedActivity = data
 					console.log({ receivedActivity })
 					return new Response('')
@@ -51,14 +51,17 @@ describe('ActivityPub', () => {
 			const row = await db
 				.prepare(`SELECT target_actor_id, state FROM actor_following WHERE actor_id=?`)
 				.bind(actor2.id.toString())
-				.first()
+				.first<{
+					target_actor_id: object
+					state: string
+				}>()
 			assert(row)
 			assert.equal(row.target_actor_id.toString(), actor.id.toString())
 			assert.equal(row.state, 'accepted')
 
 			assert(receivedActivity)
 			assert.equal(receivedActivity.type, 'Accept')
-			assert.equal(receivedActivity.actor.toString(), actor.id.toString())
+			assert.equal((receivedActivity.actor as object).toString(), actor.id.toString())
 			assert.equal(receivedActivity.object.actor, activity.actor)
 			assert.equal(receivedActivity.object.type, activity.type)
 		})
@@ -144,7 +147,11 @@ describe('ActivityPub', () => {
 
 			await activityHandler.handle(domain, activity, db, userKEK, adminEmail, vapidKeys)
 
-			const entry = await db.prepare('SELECT * FROM actor_notifications').first()
+			const entry = await db.prepare('SELECT * FROM actor_notifications').first<{
+				type: string
+				actor_id: object
+				from_actor_id: object
+			}>()
 			assert.equal(entry.type, 'follow')
 			assert.equal(entry.actor_id.toString(), actor.id.toString())
 			assert.equal(entry.from_actor_id.toString(), actor2.id.toString())

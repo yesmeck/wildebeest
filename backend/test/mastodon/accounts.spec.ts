@@ -136,9 +136,9 @@ describe('Mastodon APIs', () => {
 			let receivedActivity: any = null
 
 			globalThis.fetch = async (input: any) => {
-				if (input.url.toString() === `https://${domain}/ap/users/sven2/inbox`) {
+				if ((input.url as URL).toString() === `https://${domain}/ap/users/sven2/inbox`) {
 					assert.equal(input.method, 'POST')
-					receivedActivity = await input.json()
+					receivedActivity = await (input as Response).json()
 					return new Response('')
 				}
 
@@ -163,8 +163,8 @@ describe('Mastodon APIs', () => {
 			assert.equal(res.status, 200)
 
 			assert(receivedActivity)
-			assert.equal(receivedActivity.type, 'Update')
-			assert.equal(receivedActivity.object.id.toString(), connectedActor.id.toString())
+			assert.equal((receivedActivity as { type: string }).type, 'Update')
+			assert.equal((receivedActivity.object as { id: object }).id.toString(), connectedActor.id.toString())
 			assert.equal(receivedActivity.object.name, 'newsven')
 		})
 
@@ -172,7 +172,7 @@ describe('Mastodon APIs', () => {
 			globalThis.fetch = async (input: RequestInfo, data: any) => {
 				if (input === 'https://api.cloudflare.com/client/v4/accounts/CF_ACCOUNT_ID/images/v1') {
 					assert.equal(data.method, 'POST')
-					const file: any = data.body.get('file')
+					const file: any = (data.body as { get: (str: string) => any }).get('file')
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -328,7 +328,7 @@ describe('Mastodon APIs', () => {
 			assert.equal(data.following_count, 2)
 			assert.equal(data.statuses_count, 1)
 			assert(isUrlValid(data.url))
-			assert(data.url.includes(domain))
+			assert((data.url as string).includes(domain))
 		})
 
 		test('get local actor statuses', async () => {
@@ -499,7 +499,7 @@ describe('Mastodon APIs', () => {
 
 			// Statuses were imported locally and once was a reblog of an already
 			// existing local object.
-			const row = await db.prepare(`SELECT count(*) as count FROM objects`).first()
+			const row: { count: number } = await db.prepare(`SELECT count(*) as count FROM objects`).first()
 			assert.equal(row.count, 2)
 		})
 
@@ -584,7 +584,7 @@ describe('Mastodon APIs', () => {
 
 		test('get local actor followers', async () => {
 			globalThis.fetch = async (input: any) => {
-				if (input.toString() === 'https://' + domain + '/ap/users/sven2') {
+				if ((input as object).toString() === 'https://' + domain + '/ap/users/sven2') {
 					return new Response(
 						JSON.stringify({
 							id: 'https://example.com/actor',
@@ -613,7 +613,7 @@ describe('Mastodon APIs', () => {
 
 		test('get local actor following', async () => {
 			globalThis.fetch = async (input: any) => {
-				if (input.toString() === 'https://' + domain + '/ap/users/sven2') {
+				if ((input as object).toString() === 'https://' + domain + '/ap/users/sven2') {
 					return new Response(
 						JSON.stringify({
 							id: 'https://example.com/foo',
@@ -751,7 +751,7 @@ describe('Mastodon APIs', () => {
 
 				globalThis.fetch = async (input: any) => {
 					if (
-						input.toString() ===
+						(input as object).toString() ===
 						'https://' + domain + '/.well-known/webfinger?resource=acct%3Aactor%40' + domain + ''
 					) {
 						return new Response(
@@ -767,7 +767,7 @@ describe('Mastodon APIs', () => {
 						)
 					}
 
-					if (input.toString() === 'https://social.com/sven') {
+					if ((input as object).toString() === 'https://social.com/sven') {
 						return new Response(
 							JSON.stringify({
 								id: `https://${domain}/ap/users/actor`,
@@ -779,7 +779,7 @@ describe('Mastodon APIs', () => {
 
 					if (input.url === 'https://example.com/inbox') {
 						assert.equal(input.method, 'POST')
-						receivedActivity = await input.json()
+						receivedActivity = await (input as Response).json()
 						return new Response('')
 					}
 
@@ -802,7 +802,11 @@ describe('Mastodon APIs', () => {
 				assert(receivedActivity)
 				assert.equal(receivedActivity.type, 'Follow')
 
-				const row = await db
+				const row: {
+					target_actor_acct: string
+					target_actor_id: string
+					state: string
+				} = await db
 					.prepare(`SELECT target_actor_acct, target_actor_id, state FROM actor_following WHERE actor_id=?`)
 					.bind(actor.id.toString())
 					.first()
@@ -833,7 +837,7 @@ describe('Mastodon APIs', () => {
 				const row = await db
 					.prepare(`SELECT count(*) as count FROM actor_following WHERE actor_id=?`)
 					.bind(actor.id.toString())
-					.first()
+					.first<{ count: number }>()
 				assert(row)
 				assert.equal(row.count, 0)
 			})

@@ -14,6 +14,7 @@ import { insertLike } from 'wildebeest/backend/src/mastodon/like'
 import { insertReblog } from 'wildebeest/backend/src/mastodon/reblog'
 import { isUrlValid, makeDB, assertJSON, streamToArrayBuffer } from '../utils'
 import * as note from 'wildebeest/backend/src/activitypub/objects/note'
+import { MastodonStatus } from 'wildebeest/backend/src/types'
 
 const userKEK = 'test_kek4'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -55,9 +56,9 @@ describe('Mastodon APIs', () => {
 			assert.equal(res.status, 200)
 			assertJSON(res)
 
-			const data = await res.json<any>()
-			assert(data.uri.includes('example.com'))
-			assert(data.uri.includes(data.id))
+			const data = await res.json<MastodonStatus>()
+			assert((data.uri as unknown as string).includes('example.com'))
+			assert((data.uri as unknown as string).includes(data.id))
 			// Required fields from https://github.com/mastodon/mastodon-android/blob/master/mastodon/src/main/java/org/joinmastodon/android/model/Status.java
 			assert(data.created_at !== undefined)
 			assert(data.account !== undefined)
@@ -79,7 +80,11 @@ describe('Mastodon APIs', () => {
           FROM objects
         `
 				)
-				.first()
+				.first<{
+					content: string
+					original_actor_id: object
+					original_object_id: unknown
+				}>()
 			assert.equal(row.content, 'my status')
 			assert.equal(row.original_actor_id.toString(), actor.id.toString())
 			assert.equal(row.original_object_id, null)
@@ -103,7 +108,7 @@ describe('Mastodon APIs', () => {
 			const res = await statuses.handleRequest(req, db, connectedActor, userKEK)
 			assert.equal(res.status, 200)
 
-			const row = await db.prepare(`SELECT count(*) as count FROM outbox_objects`).first()
+			const row = await db.prepare(`SELECT count(*) as count FROM outbox_objects`).first<{ count: number }>()
 			assert.equal(row.count, 1)
 		})
 
@@ -177,7 +182,7 @@ describe('Mastodon APIs', () => {
 			assert.equal(deliveredNote.actor, `https://${domain}/ap/users/sven`)
 			assert.equal(deliveredNote.object.attributedTo, `https://${domain}/ap/users/sven`)
 			assert.equal(deliveredNote.object.type, 'Note')
-			assert(deliveredNote.object.to.includes(note.PUBLIC))
+			assert((deliveredNote.object as { to: string }).to.includes(note.PUBLIC))
 			assert.equal(deliveredNote.object.cc.length, 1)
 		})
 
@@ -240,7 +245,7 @@ describe('Mastodon APIs', () => {
 
 				if (input.url === 'https://social.com/sven/inbox') {
 					assert.equal(input.method, 'POST')
-					const body = await input.json()
+					const body = await (input as Response).json()
 					deliveredActivity = body
 					return new Response()
 				}
@@ -271,7 +276,7 @@ describe('Mastodon APIs', () => {
 			const data = await res.json<any>()
 			assert.equal(data.favourited, true)
 
-			const row = await db.prepare(`SELECT * FROM actor_favourites`).first()
+			const row = await db.prepare(`SELECT * FROM actor_favourites`).first<{ actor_id: string; object_id: string }>()
 			assert.equal(row.actor_id, actor.id.toString())
 			assert.equal(row.object_id, note.id.toString())
 		})
@@ -403,7 +408,7 @@ describe('Mastodon APIs', () => {
 				const data = await res.json<any>()
 				assert.equal(data.reblogged, true)
 
-				const row = await db.prepare(`SELECT * FROM actor_reblogs`).first()
+				const row = await db.prepare(`SELECT * FROM actor_reblogs`).first<{ actor_id: string; object_id: string }>()
 				assert.equal(row.actor_id, actor.id.toString())
 				assert.equal(row.object_id, note.id.toString())
 			})
@@ -432,7 +437,7 @@ describe('Mastodon APIs', () => {
 				const res = await statuses_reblog.handleRequest(db, 'mastodonid1', connectedActor, userKEK)
 				assert.equal(res.status, 200)
 
-				const row = await db.prepare(`SELECT * FROM outbox_objects`).first()
+				const row = await db.prepare(`SELECT * FROM outbox_objects`).first<{ actor_id: string; object_id: string }>()
 				assert.equal(row.actor_id, actor.id.toString())
 				assert.equal(row.object_id, 'https://example.com/object1')
 			})
@@ -470,7 +475,7 @@ describe('Mastodon APIs', () => {
 
 					if (input.url === 'https://social.com/sven/inbox') {
 						assert.equal(input.method, 'POST')
-						const body = await input.json()
+						const body = await (input as Response).json()
 						deliveredActivity = body
 						return new Response()
 					}

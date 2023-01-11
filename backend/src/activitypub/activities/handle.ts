@@ -107,12 +107,12 @@ export async function handle(
 			const objectId = getObjectAsId()
 
 			// check current object
-			const object = await objects.getObjectBy(db, 'original_object_id', objectId.toString())
+			const object = await objects.getObjectBy(db, 'original_object_id', (objectId as object).toString())
 			if (object === null) {
 				throw new Error(`object ${objectId} does not exist`)
 			}
 
-			if (actorId.toString() !== object.originalActorId) {
+			if ((actorId as object).toString() !== object.originalActorId) {
 				throw new Error('actorid mismatch when updating object')
 			}
 

@@ -15,15 +15,15 @@ export function isUrlValid(s: string) {
 	return url.protocol === 'https:'
 }
 
-export async function makeDB(): Promise<any> {
+export async function makeDB(): Promise<D1Database> {
 	const db = new Database(':memory:')
 	const db2 = new BetaDatabase(db)!
 
 	// Manually run our migrations since @miniflare/d1 doesn't support it (yet).
 	const initial = await fs.readFile('./migrations/0000_initial.sql', 'utf-8')
-	await db.exec(initial)
+	db.exec(initial)
 
-	return db2
+	return db2 as unknown as D1Database
 }
 
 export function assertCORS(response: Response) {

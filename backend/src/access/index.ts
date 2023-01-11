@@ -131,7 +131,7 @@ export const generateValidator =
 			if (payloadObj.iss && payloadObj.iss !== certsURL.origin) {
 				throw new Error('JWT issuer is incorrect.')
 			}
-			if (payloadObj.aud && !payloadObj.aud.includes(aud)) {
+			if (payloadObj.aud && !(payloadObj.aud as string).includes(aud)) {
 				throw new Error('JWT audience is incorrect.')
 			}
 			if (payloadObj.exp && Math.floor(unroundedSecondsSinceEpoch) >= payloadObj.exp) {

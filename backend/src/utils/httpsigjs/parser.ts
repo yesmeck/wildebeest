@@ -241,7 +241,7 @@ export function parseRequest(request: Request, options?: Options): ParsedSignatu
 			parsed.params.headers = ['date']
 		}
 	} else {
-		parsed.params.headers = parsed.params.headers.split(' ')
+		parsed.params.headers = (parsed.params.headers as string).split(' ')
 	}
 
 	// Minimally validate the parsed object
@@ -253,7 +253,7 @@ export function parseRequest(request: Request, options?: Options): ParsedSignatu
 
 	if (!parsed.params.signature) throw new InvalidHeaderError('signature was not specified')
 
-	if (['date', 'x-date', '(created)'].every((hdr) => parsed.params.headers.indexOf(hdr) < 0)) {
+	if (['date', 'x-date', '(created)'].every((hdr) => (parsed.params.headers as string[]).indexOf(hdr) < 0)) {
 		throw new MissingHeaderError('no signed date header')
 	}
 
@@ -268,7 +268,7 @@ export function parseRequest(request: Request, options?: Options): ParsedSignatu
 
 	// Build the signingString
 	for (i = 0; i < parsed.params.headers.length; i++) {
-		const h = parsed.params.headers[i].toLowerCase()
+		const h = (parsed.params.headers[i] as string).toLowerCase()
 		parsed.params.headers[i] = h
 
 		if (h === 'request-line') {
@@ -352,12 +352,13 @@ export function parseRequest(request: Request, options?: Options): ParsedSignatu
 	headers.forEach(function (hdr) {
 		// Remember that we already checked any headers in the params
 		// were in the request, so if this passes we're good.
-		if (parsed.params.headers.indexOf(hdr.toLowerCase()) < 0)
+		if ((parsed.params.headers as string[]).indexOf(hdr.toLowerCase()) < 0)
 			throw new MissingHeaderError(hdr + ' was not a signed header')
 	})
 
-	parsed.params.algorithm = parsed.params.algorithm.toLowerCase()
-	parsed.algorithm = parsed.params.algorithm.toUpperCase()
+	const algorithm: string = parsed.params.algorithm
+	parsed.params.algorithm = algorithm.toLowerCase()
+	parsed.algorithm = algorithm.toUpperCase()
 	parsed.keyId = parsed.params.keyId
 	parsed.opaque = parsed.params.opaque
 	parsed.signature = parsed.params.signature

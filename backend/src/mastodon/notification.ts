@@ -23,10 +23,10 @@ export async function createNotification(
           VALUES (?, ?, ?, ?)
           RETURNING id
 `
-	const row: { id: string } = await db
+	const row = await db
 		.prepare(query)
 		.bind(type, actor.id.toString(), fromActor.id.toString(), obj.id.toString())
-		.first()
+		.first<{ id: string }>()
 	return row.id
 }
 
@@ -38,7 +38,7 @@ export async function insertFollowNotification(db: D1Database, actor: Actor, fro
           VALUES (?, ?, ?)
           RETURNING id
 `
-	const row: { id: string } = await db.prepare(query).bind(type, actor.id.toString(), fromActor.id.toString()).first()
+	const row = await db.prepare(query).bind(type, actor.id.toString(), fromActor.id.toString()).first<{ id: string }>()
 	return row.id
 }
 
@@ -211,7 +211,7 @@ export async function getNotifications(db: D1Database, actor: Actor): Promise<Ar
 		const notifFromAccount = await loadExternalMastodonAccount(acct, notifFromActor)
 
 		const notif: Notification = {
-			id: result.notif_id.toString(),
+			id: (result.notif_id as string).toString(),
 			type: result.type,
 			created_at: new Date(result.notif_cdate).toISOString(),
 			account: notifFromAccount,

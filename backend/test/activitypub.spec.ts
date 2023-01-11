@@ -81,7 +81,7 @@ describe('ActivityPub', () => {
 			const row = await db
 				.prepare(`SELECT target_actor_id, state FROM actor_following WHERE actor_id=?`)
 				.bind(actor.id.toString())
-				.first()
+				.first<{ target_actor_id: string; state: string }>()
 			assert(row)
 			assert.equal(row.target_actor_id, 'https://' + domain + '/ap/users/sven2')
 			assert.equal(row.state, 'accepted')
@@ -208,7 +208,10 @@ describe('ActivityPub', () => {
 
 			await activityHandler.handle(domain, activity, db, userKEK, adminEmail, vapidKeys)
 
-			const updatedObject = await db.prepare('SELECT * FROM objects WHERE original_object_id=?').bind(object.id).first()
+			const updatedObject = await db
+				.prepare('SELECT * FROM objects WHERE original_object_id=?')
+				.bind(object.id)
+				.first<{ properties: string }>()
 			assert(updatedObject)
 			assert.equal(JSON.parse(updatedObject.properties).content, newObject.content)
 		})
@@ -289,7 +292,10 @@ describe('ActivityPub', () => {
 			}
 			await activityHandler.handle(domain, activity, db, userKEK, adminEmail, vapidKeys)
 
-			const object = await db.prepare('SELECT * FROM objects').bind(remoteActorId).first()
+			const object = await db.prepare('SELECT * FROM objects').bind(remoteActorId).first<{
+				type: string
+				original_actor_id: string
+			}>()
 			assert(object)
 			assert.equal(object.type, 'Note')
 			assert.equal(object.original_actor_id, remoteActorId)
@@ -297,7 +303,7 @@ describe('ActivityPub', () => {
 			const outbox_object = await db
 				.prepare('SELECT * FROM outbox_objects WHERE actor_id=?')
 				.bind(remoteActorId)
-				.first()
+				.first<{ actor_id: string }>()
 			assert(outbox_object)
 			assert.equal(outbox_object.actor_id, remoteActorId)
 		})
