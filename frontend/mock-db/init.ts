@@ -1,7 +1,7 @@
 import { createPerson, getPersonByEmail, type Person } from 'wildebeest/backend/src/activitypub/actors'
 import * as statusesAPI from 'wildebeest/functions/api/v1/statuses'
 import * as reblogAPI from 'wildebeest/functions/api/v1/statuses/[id]/reblog'
-import { statuses } from 'wildebeest/frontend/src/dummyData'
+import { replies, statuses } from 'wildebeest/frontend/src/dummyData'
 import type { Account, MastodonStatus } from 'wildebeest/frontend/src/types'
 
 const kek = 'test-kek'
@@ -20,9 +20,23 @@ const kv_cache = {
  */
 export async function init(domain: string, db: D1Database) {
 	const loadedStatuses: MastodonStatus[] = []
-	for (const status of statuses) {
+	const targetMastodonIdsMap = new Map<null | string, string | undefined>([[null, undefined]])
+	replies.forEach((reply) => {
+		if (!reply.in_reply_to_id) {
+			// eslint-disable-next-line no-console
+			console.warn(`Ignoring reply with id ${reply.id} since it doesn't have a in_reply_to_id field`)
+		} else {
+			targetMastodonIdsMap.set(reply.in_reply_to_id, undefined)
+		}
+	})
+	for (const status of [...statuses, ...replies]) {
 		const actor = await getOrCreatePerson(domain, db, status.account)
-		loadedStatuses.push(await createStatus(db, actor, status.content))
+
+		const createdStatus = await createStatus(db, actor, status.content, targetMastodonIdsMap.get(status.in_reply_to_id))
+		loadedStatuses.push(createdStatus)
+		if (targetMastodonIdsMap.has(status.id)) {
+			targetMastodonIdsMap.set(status.id, createdStatus.mastodonId)
+		}
 	}
 
 	// Grab the account from an arbitrary status to use as the reblogger
@@ -36,10 +50,17 @@ export async function init(domain: string, db: D1Database) {
 /**
  * Create a status object in the given actors outbox.
  */
-async function createStatus(db: D1Database, actor: Person, status: string, visibility = 'public') {
+async function createStatus(
+	db: D1Database,
+	actor: Person,
+	status: string,
+	inReplyToId?: string,
+	visibility = 'public'
+) {
 	const body = {
 		status,
 		visibility,
+		...(inReplyToId ? { in_reply_to_id: inReplyToId } : {}),
 	}
 	const headers = {
 		'content-type': 'application/json',
@@ -50,7 +71,7 @@ async function createStatus(db: D1Database, actor: Person, status: string, visib
 		body: JSON.stringify(body),
 	})
 	const resp = await statusesAPI.handleRequest(req, db, actor, kek, queue, kv_cache as unknown as KVNamespace)
-	return (await resp.json()) as MastodonStatus
+	return (await resp.json()) as MastodonStatus & { mastodonId: string }
 }
 
 async function getOrCreatePerson(

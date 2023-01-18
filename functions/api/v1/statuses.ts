@@ -128,5 +128,5 @@ export async function handleRequest(
 		...cors(),
 		'content-type': 'application/json; charset=utf-8',
 	}
-	return new Response(JSON.stringify(res), { headers })
+	return new Response(JSON.stringify({ ...res, mastodonId: note.mastodonId }), { headers })
 }
